@@ -5,12 +5,21 @@ from google.api_core.exceptions import ResourceExhausted
 
 app = Flask(__name__)
 
-# Reads the long string of keys from Render's Environment Variables
-API_KEYS = os.getenv("GEMINI_API_KEYS").split(",")
+# Fetching keys from 9 separate environment variables
+def get_all_keys():
+    keys = []
+    for i in range(1, 10):
+        key = os.getenv(f"API_KEY_{i}")
+        if key:
+            keys.append(key)
+    return keys
+
 current_key_index = 0
 
 def get_client():
-    return genai.Client(api_key=API_KEYS[current_key_index])
+    keys = get_all_keys()
+    # Cycle through the list of keys we just found
+    return genai.Client(api_key=keys[current_key_index % len(keys)])
 
 @app.route('/')
 def index():
@@ -31,9 +40,11 @@ def ask():
         return jsonify({"answer": response.text})
     
     except (ResourceExhausted, Exception):
-        # Automatically moves to the next key if a limit is reached
-        current_key_index = (current_key_index + 1) % len(API_KEYS)
-        return jsonify({"answer": "Switching API keys... please try your request again in a second."})
+        # Rotate to the next key if current one hits limit
+        keys = get_all_keys()
+        if keys:
+            current_key_index = (current_key_index + 1) % len(keys)
+        return jsonify({"answer": "Switching servers, please try your request again in a second."})
 
 if __name__ == '__main__':
     app.run()
