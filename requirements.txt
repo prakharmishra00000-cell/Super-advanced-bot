@@ -1,3 +1,4 @@
 flask
 google-genai
+google-api-core
 gunicorn
